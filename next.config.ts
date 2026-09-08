@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // "standalone" produces a self-contained build that includes only the
-  // files needed to run — no node_modules required in production.
-  // This is what makes Docker images small and self-hosting simple.
-  output: "standalone",
+  // Vercel manages its own traced deployment output. Standalone is retained
+  // for the self-hosted Docker image, where it keeps the runtime small.
+  ...(process.env.VERCEL ? {} : { output: "standalone" }),
 };
 
 export default nextConfig;
