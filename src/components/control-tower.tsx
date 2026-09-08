@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import type { CommunicationEvent, Document, Exception, Shipment } from "@/lib/domain";
 import { prioritizedExceptions } from "@/lib/rules";
+import { DemoControls, useDemoSimulation } from "@/components/demo-simulation";
 
 const navItems = [
   ["Control Tower", LayoutDashboard, "/"],
@@ -112,8 +113,27 @@ export function ControlTower({
   const [customerFilter, setCustomerFilter] = useState("all");
   const [carrierFilter, setCarrierFilter] = useState("all");
   const currentUser = "Maya Chen";
-  const shipmentById = useMemo(() => new Map(shipments.map((shipment) => [shipment.id, shipment])), [shipments]);
-  const prioritized = useMemo(() => prioritizedExceptions(exceptions, shipments), [exceptions, shipments]);
+  const demo = useDemoSimulation();
+  const activeShipmentsData = useMemo(() => {
+    if (!demo.injectedException && !demo.lastEvent) return shipments;
+    const target = shipments[0];
+    if (!target) return shipments;
+    return shipments.map((shipment) => shipment.id === target.id ? {
+      ...shipment,
+      currentStatus: demo.injectedException === "late pickup" ? "en_route_pickup" : demo.injectedException === "late delivery" ? "in_transit" : shipment.currentStatus,
+      trackingState: demo.injectedException === "stale tracking" || demo.injectedException === "carrier non-response" ? "stale" : shipment.trackingState,
+      riskScore: demo.injectedException ? 92 : shipment.riskScore,
+      riskReasons: demo.injectedException ? [`Demo: ${demo.injectedException}`, "Human action required"] : shipment.riskReasons,
+    } : shipment);
+  }, [demo.injectedException, demo.lastEvent, shipments]);
+  const activeExceptions = useMemo(() => {
+    if (!demo.injectedException || !activeShipmentsData[0]) return exceptions;
+    const target = activeShipmentsData[0];
+    const titles: Record<string, string> = { "stale tracking": "Stale tracking", "late pickup": "Late pickup risk", "late delivery": "Delivery appointment at risk", "carrier non-response": "Carrier non-response", "missing POD": "POD missing", "equipment breakdown": "Equipment issue" };
+    return [...exceptions.filter((exception) => exception.shipmentId !== target.id), { id: "demo-injected-exception", shipmentId: target.id, severity: "critical" as const, category: demo.injectedException === "missing POD" ? "documentation" as const : "carrier" as const, detectedAt: new Date().toISOString(), title: titles[demo.injectedException], description: `Presenter injected ${demo.injectedException} to demonstrate surfaced operational work.`, recommendedAction: demo.injectedException === "carrier non-response" ? "Contact carrier dispatch and escalate after two attempts." : "Review the load and take the recommended exception action.", owner: target.dispatcher.name, dueAt: new Date().toISOString(), status: "open" as const }];
+  }, [activeShipmentsData, demo.injectedException, exceptions]);
+  const shipmentById = useMemo(() => new Map(activeShipmentsData.map((shipment) => [shipment.id, shipment])), [activeShipmentsData]);
+  const prioritized = useMemo(() => prioritizedExceptions(activeExceptions, activeShipmentsData), [activeExceptions, activeShipmentsData]);
 
   const filteredQueue = useMemo(
     () =>
@@ -129,20 +149,20 @@ export function ControlTower({
     [brokerFilter, carrierFilter, customerFilter, dispatcherFilter, filter, prioritized],
   );
   const selected = prioritized.find((item) => item.exception.id === selectedException);
-  const activeShipments = shipments.filter((shipment) => !["closed", "invoiced"].includes(shipment.currentStatus));
-  const criticalCount = exceptions.filter((item) => item.severity === "critical").length;
+  const activeShipments = activeShipmentsData.filter((shipment) => !["closed", "invoiced"].includes(shipment.currentStatus));
+  const criticalCount = activeExceptions.filter((item) => item.severity === "critical").length;
   const healthyCount = activeShipments.filter((shipment) => shipment.riskScore < 45).length;
   const watchCount = activeShipments.filter((shipment) => shipment.riskScore >= 45 && shipment.riskScore < 65).length;
   const actionCount = activeShipments.filter((shipment) => shipment.riskScore >= 65 && shipment.riskScore < 82).length;
   const latePickups = activeShipments.filter((shipment) => new Date(shipment.pickupAppointment) < new Date() && !["loaded", "in_transit", "at_delivery", "delivered", "pod_pending"].includes(shipment.currentStatus)).length;
   const lateDeliveries = activeShipments.filter((shipment) => new Date(shipment.eta) > new Date(shipment.deliveryAppointment) && ["in_transit", "at_delivery"].includes(shipment.currentStatus)).length;
-  const missingPod = shipments.filter((shipment) => shipment.podStatus === "missing").length;
-  const customerUpdatesDue = shipments.filter((shipment) => new Date(shipment.customerUpdateDue) <= new Date()).length;
+  const missingPod = activeShipmentsData.filter((shipment) => shipment.podStatus === "missing").length;
+  const customerUpdatesDue = activeShipmentsData.filter((shipment) => new Date(shipment.customerUpdateDue) <= new Date()).length;
   const upcoming = [...activeShipments].sort((a, b) => new Date(a.pickupAppointment).getTime() - new Date(b.pickupAppointment).getTime()).slice(0, 5);
   const activity = [
     ...communications.map((event) => ({ id: event.id, time: event.timestamp, icon: event.type === "customer_update" ? Users : Phone, title: event.type === "customer_update" ? "Customer notification sent" : "Carrier response received", detail: `${event.party} · ${event.summary}` })),
     ...documents.filter((document) => document.status === "received" || document.status === "verified").map((document) => ({ id: document.id, time: document.receivedAt ?? new Date().toISOString(), icon: FileText, title: `${document.type} received`, detail: `${shipmentById.get(document.shipmentId)?.loadNumber} · ${document.status}` })),
-    ...exceptions.filter((exception) => exception.status === "in_progress").map((exception) => ({ id: exception.id, time: exception.detectedAt, icon: AlertTriangle, title: "Exception escalated", detail: `${shipmentById.get(exception.shipmentId)?.loadNumber} · ${exception.title}` })),
+    ...activeExceptions.filter((exception) => exception.status === "in_progress").map((exception) => ({ id: exception.id, time: exception.detectedAt, icon: AlertTriangle, title: "Exception escalated", detail: `${shipmentById.get(exception.shipmentId)?.loadNumber} · ${exception.title}` })),
   ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6);
   const filterConfigs: { label: string; value: string; setter: (value: string) => void; options: { id: string; name: string }[] }[] = [
     { label: "Broker", value: brokerFilter, setter: setBrokerFilter, options: brokersFor(shipments) },
@@ -170,13 +190,14 @@ export function ControlTower({
         </header>
 
         <main className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8 lg:py-8">
-          <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-400">Live operations / East desk</p><h1 className="text-2xl font-semibold tracking-tight text-white lg:text-3xl">Good morning, Maya.</h1><p className="mt-2 text-sm text-slate-500">Here is the work that needs a human today. <span className="text-slate-300">{exceptions.length} active exceptions</span> across {activeShipments.length} loads.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-400" />Live feed · synced 2 min ago</div></div>
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-400">Live operations / East desk</p><h1 className="text-2xl font-semibold tracking-tight text-white lg:text-3xl">Good morning, Maya.</h1><p className="mt-2 text-sm text-slate-500">Here is the work that needs a human today. <span className="text-slate-300">{activeExceptions.length} active exceptions</span> across {activeShipments.length} loads.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-400" />{demo.paused ? "Demo paused" : "Simulated live feed"}</div></div>
+          <div className="mb-5 max-w-3xl"><DemoControls /></div>
 
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-8">
             {[
               ["Active loads", activeShipments.length, "network", "text-white"],
               ["Healthy", healthyCount, `${Math.round((healthyCount / activeShipments.length) * 100)}% on plan`, "text-emerald-300"],
-              ["Attention", exceptions.length, `${actionCount} action required`, "text-amber-200"],
+              ["Attention", activeExceptions.length, `${actionCount} action required`, "text-amber-200"],
               ["Critical", criticalCount, "needs owner now", "text-red-300"],
               ["Late pickups", latePickups, "appointment risk", "text-orange-300"],
               ["Late deliveries", lateDeliveries, "ETA past appointment", "text-orange-300"],
