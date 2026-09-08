@@ -42,7 +42,7 @@ const navItems = [
   ["Documents", FileText, "/documents"],
   ["Customers", Users, "#"],
   ["Analytics", CircleDot, "#"],
-  ["Settings", Settings, "#"],
+  ["Settings", Settings, "/settings/automation-rules"],
 ] as const;
 
 type QueueAction = "contacted" | "response" | "eta" | "customer" | "snooze" | "escalate" | "reassign" | "resolved";

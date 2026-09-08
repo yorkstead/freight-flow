@@ -42,7 +42,7 @@ const navItems = [
   ["Documents", FileText, "/documents"],
   ["Customers", Users, "#"],
   ["Analytics", CircleDot, "#"],
-  ["Settings", Settings, "#"],
+  ["Settings", Settings, "/settings/automation-rules"],
 ] as const;
 
 type Action = "carrier" | "eta" | "customer" | "exception" | "document" | "escalate" | "delivered";
