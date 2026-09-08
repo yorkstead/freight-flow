@@ -1,0 +1,35 @@
+# ==============================================================================
+# Yorkstead Starter — Docker Compose
+# ==============================================================================
+# Quick start:
+#   docker compose up --build
+#
+# This runs the app in production mode on port 3000.
+# For local development, use `npm run dev` instead — it's faster with HMR.
+#
+# When your project needs a database, add it as a service here.
+# Example (uncomment when needed):
+#
+#   db:
+#     image: postgres:16-alpine
+#     environment:
+#       POSTGRES_DB: yorkstead
+#       POSTGRES_USER: yorkstead
+#       POSTGRES_PASSWORD: ${DB_PASSWORD}
+#     volumes:
+#       - pgdata:/var/lib/postgresql/data
+#     ports:
+#       - "5432:5432"
+#
+# volumes:
+#   pgdata:
+# ==============================================================================
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    restart: unless-stopped
