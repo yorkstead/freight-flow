@@ -130,10 +130,14 @@ export const shipments: Shipment[] = Array.from({ length: 80 }, (_, index) => {
   const carrier = carriers[index % carriers.length];
   const customer = customers[index % customers.length];
   const status = statusByIndex[index % statusByIndex.length];
+  const isCompleted = status === "delivered" || status === "pod_pending";
+  const isPrePickup = status === "en_route_pickup" || status === "at_pickup";
+  const pickupOffset = isCompleted ? -36 - (index % 18) : isPrePickup ? (index % 8) - 2 : -8 - (index % 10);
+  const deliveryOffset = isCompleted ? -12 - (index % 24) : 8 + (index % 28);
   const riskReasons =
-    index % 7 === 0
+    !isCompleted && index % 7 === 0
       ? ["Tracking stale", "Customer update due"]
-      : index % 5 === 0
+      : !isCompleted && index % 5 === 0
         ? ["Appointment proximity"]
         : [];
   const podStatus =
@@ -147,8 +151,8 @@ export const shipments: Shipment[] = Array.from({ length: 80 }, (_, index) => {
     dispatcher: dispatchers[index % dispatchers.length],
     origin: route[0],
     destination: route[1],
-    pickupAppointment: isoHoursFromNow((index % 12) - 4),
-    deliveryAppointment: isoHoursFromNow((index % 28) + 8),
+    pickupAppointment: isoHoursFromNow(pickupOffset),
+    deliveryAppointment: isoHoursFromNow(deliveryOffset),
     currentStatus: status,
     carrier,
     driverName: names[(index + 2) % names.length],
@@ -161,11 +165,15 @@ export const shipments: Shipment[] = Array.from({ length: 80 }, (_, index) => {
     lastTrackingUpdate: isoHoursAgo(index % 7 === 0 ? 3 + (index % 4) : index % 3),
     eta: isoHoursFromNow((index % 22) + 2),
     trackingState: index % 7 === 0 ? "stale" : "current",
-    customerUpdateDue: isoHoursFromNow(index % 6 === 0 ? -1 : 3),
+    customerUpdateDue: isoHoursFromNow(isCompleted ? 24 : index % 6 === 0 ? -1 : 3),
     podStatus,
     bolStatus,
     billingStatus:
-      status === "delivered" && podStatus !== "verified" ? "held" : "not_ready",
+      status === "delivered" && podStatus === "verified" && bolStatus === "verified"
+        ? "ready"
+        : status === "pod_pending" || status === "delivered"
+          ? "held"
+          : "not_ready",
     riskScore: riskReasons.length ? 58 + (index % 35) : 12 + (index % 30),
     riskReasons,
     tags: [index % 2 === 0 ? "priority-customer" : "standard", ...(index % 7 === 0 ? ["stale-tracking"] : [])],
@@ -183,8 +191,16 @@ const exceptionTemplates = [
 ] as const;
 
 export const exceptions: Exception[] = Array.from({ length: 34 }, (_, index) => {
-  const shipment = shipments[(index * 7) % shipments.length];
   const template = exceptionTemplates[index % exceptionTemplates.length];
+  const candidates = shipments.filter((shipment) => {
+    if (template[0] === "POD missing") return shipment.currentStatus === "pod_pending";
+    if (template[0] === "BOL missing") return shipment.currentStatus === "delivered" || shipment.currentStatus === "pod_pending";
+    if (template[0] === "Pickup appointment risk") return ["en_route_pickup", "at_pickup"].includes(shipment.currentStatus);
+    if (template[0] === "Delivery appointment risk") return ["in_transit", "loaded", "at_delivery"].includes(shipment.currentStatus);
+    if (template[0] === "Customer update overdue") return !["delivered", "pod_pending"].includes(shipment.currentStatus);
+    return !["delivered", "pod_pending"].includes(shipment.currentStatus);
+  });
+  const shipment = candidates[(index * 7) % candidates.length] ?? shipments[(index * 7) % shipments.length];
   return {
     id: `exception-${index + 1}`,
     shipmentId: shipment.id,
