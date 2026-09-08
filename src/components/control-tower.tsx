@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -30,15 +31,15 @@ import type { CommunicationEvent, Document, Exception, Shipment } from "@/lib/do
 import { prioritizedExceptions } from "@/lib/rules";
 
 const navItems = [
-  ["Control Tower", LayoutDashboard],
-  ["My Queue", Zap],
-  ["Loads", PackageSearch],
-  ["Exceptions", AlertTriangle],
-  ["Carriers", Truck],
-  ["Documents", FileText],
-  ["Customers", Users],
-  ["Analytics", CircleDot],
-  ["Settings", Settings],
+  ["Control Tower", LayoutDashboard, "/"],
+  ["My Queue", Zap, "/my-queue"],
+  ["Loads", PackageSearch, "#"],
+  ["Exceptions", AlertTriangle, "#"],
+  ["Carriers", Truck, "/carriers"],
+  ["Documents", FileText, "/documents"],
+  ["Customer updates", Users, "/customer-updates"],
+  ["Analytics", CircleDot, "#"],
+  ["Settings", Settings, "#"],
 ] as const;
 
 const quickFilters = [
@@ -157,7 +158,7 @@ export function ControlTower({
           <div><div className="flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-white"><span className="grid h-7 w-7 place-items-center rounded bg-cyan-400 text-[#071014]"><Zap size={15} fill="currentColor" /></span>FREIGHTFLOW</div><p className="mt-1 pl-9 text-[10px] uppercase tracking-[0.24em] text-slate-500">Control tower</p></div>
           <button onClick={() => setSidebarOpen(false)} className="rounded p-1 text-slate-500 hover:bg-white/5 hover:text-white lg:hidden" aria-label="Close navigation"><X size={18} /></button>
         </div>
-        <div className="px-3 py-5"><p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">Operations</p><nav className="space-y-1">{navItems.map(([label, Icon]) => <button key={label} onClick={() => { setActiveNav(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition ${activeNav === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}`}><Icon size={17} strokeWidth={1.7} /><span>{label}</span>{label === "Exceptions" && <span className="ml-auto rounded-full bg-red-400/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">{exceptions.length}</span>}</button>)}</nav></div>
+        <div className="px-3 py-5"><p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">Operations</p><nav className="space-y-1">{navItems.map(([label, Icon, href]) => href === "#" ? <button key={label} onClick={() => { setActiveNav(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition ${activeNav === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}`}><Icon size={17} strokeWidth={1.7} /><span>{label}</span>{label === "Exceptions" && <span className="ml-auto rounded-full bg-red-400/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">{exceptions.length}</span>}</button> : <Link key={label} href={href} onClick={() => { setActiveNav(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition ${activeNav === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}`}><Icon size={17} strokeWidth={1.7} /><span>{label}</span></Link>)}</nav></div>
         <div className="mt-auto border-t border-white/10 p-4"><div className="flex items-center gap-3 rounded bg-white/[0.03] p-3"><div className="grid h-8 w-8 place-items-center rounded-full bg-cyan-400/15 text-xs font-semibold text-cyan-300">MC</div><div className="min-w-0"><p className="truncate text-xs font-medium text-slate-200">Maya Chen</p><p className="text-[10px] text-slate-500">Dispatcher · East desk</p></div><PanelLeftClose size={14} className="ml-auto text-slate-600" /></div></div>
       </aside>
 
