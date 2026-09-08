@@ -7,7 +7,7 @@ export function operationsAnalytics(
   documents: Document[],
   carriers: Carrier[],
 ) {
-  const active = shipments.filter((shipment) => !["closed", "invoiced"].includes(shipment.currentStatus));
+  const active = shipments.filter((shipment) => shipment.currentStatus !== "closed");
   const loadsWithExceptions = new Set(exceptions.filter((exception) => exception.status !== "resolved").map((exception) => exception.shipmentId));
   const interventionContacts = communications.filter((event) => event.direction === "outbound").length;
   const blocked = shipments.filter((shipment) => shipment.podStatus === "missing" || shipment.billingStatus === "held");

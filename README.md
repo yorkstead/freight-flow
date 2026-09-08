@@ -1,6 +1,18 @@
-# Yorkstead Starter
+# FreightFlow Control Tower
 
 A minimal, self-hostable Next.js App Router starter template by **Yorkstead Systems**.
+
+FreightFlow is an operational intelligence and action layer for freight brokerage teams. It is not a transportation management system: an existing TMS remains authoritative for load creation, quoting, tendering, carrier contracts, customer master data, shipment records, accounting, and invoicing.
+
+FreightFlow consumes those records and answers five operating questions:
+
+- What needs attention?
+- Why does it matter?
+- Who should act?
+- What should they do and by when?
+- Was the issue resolved?
+
+The product owns exception detection, prioritized work, communication orchestration, document follow-up, explainable rules, and operational analytics. Any financial or shipment values shown in the demo are read-only operating context or modeled signals for downstream workflows.
 
 Fork this repo for every new project — workflow automations, POS systems, manufacturing tools, and everything in between. The boring plumbing is done; you just build features.
 

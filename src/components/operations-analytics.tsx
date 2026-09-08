@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { AlertTriangle, Bell, ChevronRight, CircleDot, FileText, LayoutDashboard, Menu, PackageSearch, Settings, Truck, Users, Zap } from "lucide-react";
 import type { Shipment } from "@/lib/domain";
+import { SystemBoundary } from "@/components/system-boundary";
 
 type AnalyticsData = ReturnType<typeof import("@/lib/operations-analytics").operationsAnalytics>;
 
 export function OperationsAnalytics({ data, shipments }: { data: AnalyticsData; shipments: Shipment[] }) {
   const [selected, setSelected] = useState<string | null>(null);
   const affected = selected === "service" ? shipments.filter((shipment) => shipment.riskScore >= 65) : selected === "documents" ? shipments.filter((shipment) => shipment.podStatus === "missing") : selected ? shipments.filter((shipment) => `${shipment.origin} → ${shipment.destination}` === selected) : [];
-  return <Shell active="Analytics"><main className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
+  return <Shell active="Analytics"><main className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8"><SystemBoundary />
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-400">Operations intelligence</p><h1 className="text-2xl font-semibold tracking-tight text-white lg:text-3xl">Analytics</h1><p className="mt-2 text-sm text-slate-500">Every metric answers a work question. Select a friction signal to inspect affected loads.</p></div><span className="rounded border border-cyan-400/20 bg-cyan-400/[0.06] px-3 py-2 text-[10px] uppercase tracking-wider text-cyan-300">Demo model · auditable assumptions</span></div>
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><Metric label="Total loads" value={data.loadHealth.total} question="How much freight is in scope?" /><Metric label="Human intervention" value={data.loadHealth.intervention} question="Where does work enter the queue?" tone="amber" /><Metric label="Exception-free" value={data.loadHealth.exceptionFree} question="What is moving without intervention?" tone="green" /><Metric label="Exception rate" value={`${data.loadHealth.exceptionRate}%`} question="How often does freight create work?" tone="red" /><Metric label="Avg exceptions / load" value={data.loadHealth.averageExceptions} question="How dense is the operational friction?" /></section>
     <section className="mt-6 grid gap-6 xl:grid-cols-2">

@@ -1,7 +1,7 @@
 import type { CommunicationEvent, Exception, Shipment } from "@/lib/domain";
 
 export function executiveMetrics(shipments: Shipment[], exceptions: Exception[], communications: CommunicationEvent[]) {
-  const active = shipments.filter((shipment) => !["closed", "invoiced"].includes(shipment.currentStatus));
+  const active = shipments.filter((shipment) => shipment.currentStatus !== "closed");
   const openExceptions = exceptions.filter((exception) => exception.status !== "resolved");
   const interventionLoads = new Set(openExceptions.map((exception) => exception.shipmentId));
   const delivered = shipments.filter((shipment) => ["delivered", "pod_pending"].includes(shipment.currentStatus));

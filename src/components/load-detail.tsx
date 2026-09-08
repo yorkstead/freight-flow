@@ -32,6 +32,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { CommunicationEvent, Document, Exception, Shipment, TimelineEvent } from "@/lib/domain";
+import { SystemBoundary } from "@/components/system-boundary";
 
 const navItems = [
   ["Control Tower", LayoutDashboard, "/"],
@@ -45,7 +46,7 @@ const navItems = [
   ["Settings", Settings, "/settings/automation-rules"],
 ] as const;
 
-type Action = "carrier" | "eta" | "customer" | "exception" | "document" | "escalate" | "delivered";
+type Action = "carrier" | "eta" | "customer" | "exception" | "document" | "escalate";
 
 const actionLabels: Record<Action, string> = {
   carrier: "Carrier contact logged",
@@ -54,7 +55,6 @@ const actionLabels: Record<Action, string> = {
   exception: "Exception draft created",
   document: "Document marked received",
   escalate: "Escalated to carrier relations",
-  delivered: "Load marked delivered",
 };
 
 function relative(date: string) {
@@ -82,27 +82,23 @@ export function LoadDetail({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [delivered, setDelivered] = useState(false);
   const [receivedDocuments, setReceivedDocuments] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const activeExceptions = exceptions.filter((item) => item.status !== "resolved");
   const attention = activeExceptions[0];
   const orderedTimeline = useMemo(() => {
     const generated: TimelineEvent[] = [
-      { id: "booking", shipmentId: shipment.id, timestamp: new Date(new Date(shipment.pickupAppointment).getTime() - 48 * 3600000).toISOString(), type: "status", title: "Load booked in TMS", detail: `Customer tender accepted for ${shipment.customer.name}.` },
-      { id: "tender", shipmentId: shipment.id, timestamp: new Date(new Date(shipment.pickupAppointment).getTime() - 42 * 3600000).toISOString(), type: "status", title: "Carrier tender accepted", detail: `${shipment.carrier.name} confirmed ${shipment.equipmentType}.` },
+      { id: "source-sync", shipmentId: shipment.id, timestamp: new Date(new Date(shipment.pickupAppointment).getTime() - 48 * 3600000).toISOString(), type: "status", title: "TMS record synchronized", detail: `Authoritative load and appointment data received from ${shipment.sourceSystem}.` },
       { id: "dispatch", shipmentId: shipment.id, timestamp: new Date(new Date(shipment.pickupAppointment).getTime() - 18 * 3600000).toISOString(), type: "status", title: "Driver dispatched", detail: `${shipment.driverName} assigned to the load.` },
       ...timeline,
       ...communications.map((event) => ({ id: event.id, shipmentId: event.shipmentId, timestamp: event.timestamp, type: "communication" as const, title: event.type === "customer_update" ? "Customer notification" : "Carrier communication", detail: `${event.channel.toUpperCase()} · ${event.summary}` })),
       ...activeExceptions.map((item) => ({ id: item.id, shipmentId: item.shipmentId, timestamp: item.detectedAt, type: "exception" as const, title: `Exception created: ${item.title}`, detail: item.description })),
       ...documents.filter((item) => item.receivedAt).map((item) => ({ id: item.id, shipmentId: item.shipmentId, timestamp: item.receivedAt as string, type: "document" as const, title: `${item.type} received`, detail: `${item.type} attached to the shipment record.` })),
-      ...(delivered ? [{ id: "delivered", shipmentId: shipment.id, timestamp: new Date().toISOString(), type: "status" as const, title: "Delivery confirmed", detail: "Operator marked the load delivered." }] : []),
     ];
     return generated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [activeExceptions, communications, delivered, documents, shipment, timeline]);
+  }, [activeExceptions, communications, documents, shipment, timeline]);
 
   const runAction = (action: Action) => {
-    if (action === "delivered") setDelivered(true);
     if (action === "document") setReceivedDocuments((current) => [...current, "manual"]);
     setToast(actionLabels[action]);
     window.setTimeout(() => setToast(null), 2400);
@@ -121,11 +117,12 @@ export function LoadDetail({
 
         <main className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3"><Link href="/my-queue" className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-slate-600 hover:text-cyan-300"><ArrowLeft size={12} /> Back to queue</Link><span className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Live shipment record</span></div>
-          <section className="rounded border border-white/10 bg-[#11161c]"><div className="flex flex-wrap items-start justify-between gap-5 border-b border-white/10 p-5 lg:p-6"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-semibold tracking-tight text-white">{shipment.loadNumber}</h1><span className="rounded border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-300">{delivered ? "delivered" : shipment.currentStatus.replaceAll("_", " ")}</span>{shipment.riskScore >= 65 && <span className="rounded border border-orange-400/30 bg-orange-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-orange-300">at risk · {shipment.riskScore}</span>}</div><p className="mt-2 text-sm text-slate-400">{shipment.customer.name} · {shipment.origin} <span className="mx-1 text-slate-600">→</span> {shipment.destination}</p></div><div className="flex flex-wrap gap-2">{[["carrier", Phone, "Contact carrier"], ["eta", CalendarClock, "Update ETA"], ["customer", Send, "Customer update"], ["exception", Plus, "Add exception"], ["document", FileText, "Receive document"], ["escalate", ShieldAlert, "Escalate"], ["delivered", CheckCircle2, "Mark delivered"]].map(([action, Icon, label]) => <button key={action as string} onClick={() => runAction(action as Action)} className="flex items-center gap-1.5 rounded border border-white/10 bg-white/[0.02] px-2.5 py-2 text-[10px] font-medium text-slate-300 hover:border-cyan-400/30 hover:bg-cyan-400/[0.05] hover:text-cyan-200"><Icon size={14} />{label as string}</button>)}</div></div><div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4"><Info label="Customer / broker" value={`${shipment.customer.name} · ${shipment.broker.name}`} /><Info label="Dispatcher / owner" value={shipment.dispatcher.name} /><Info label="Carrier / driver" value={`${shipment.carrier.name} · ${shipment.driverName}`} /><Info label="Equipment" value={`${shipment.equipmentType} · ${shipment.driverPhone}`} /><Info label="Origin" value={shipment.origin} icon={<MapPin size={13} />} /><Info label="Destination" value={shipment.destination} icon={<MapPin size={13} />} /><Info label="Pickup appointment" value={time(shipment.pickupAppointment)} icon={<CalendarClock size={13} />} /><Info label="Delivery / current ETA" value={`${time(shipment.deliveryAppointment)} / ${time(shipment.eta)}`} icon={<Clock3 size={13} />} /></div></section>
+          <SystemBoundary />
+          <section className="rounded border border-white/10 bg-[#11161c]"><div className="flex flex-wrap items-start justify-between gap-5 border-b border-white/10 p-5 lg:p-6"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-semibold tracking-tight text-white">{shipment.loadNumber}</h1><span className="rounded border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-cyan-300">{shipment.currentStatus.replaceAll("_", " ")}</span>{shipment.riskScore >= 65 && <span className="rounded border border-orange-400/30 bg-orange-400/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-orange-300">at risk · {shipment.riskScore}</span>}</div><p className="mt-2 text-sm text-slate-400">{shipment.customer.name} · {shipment.origin} <span className="mx-1 text-slate-600">→</span> {shipment.destination}</p></div><div className="flex flex-wrap gap-2">{[["carrier", Phone, "Contact carrier"], ["eta", CalendarClock, "Update ETA"], ["customer", Send, "Customer update"], ["exception", Plus, "Add exception"], ["document", FileText, "Record document"], ["escalate", ShieldAlert, "Escalate"],].map(([action, Icon, label]) => <button key={action as string} onClick={() => runAction(action as Action)} className="flex items-center gap-1.5 rounded border border-white/10 bg-white/[0.02] px-2.5 py-2 text-[10px] font-medium text-slate-300 hover:border-cyan-400/30 hover:bg-cyan-400/[0.05] hover:text-cyan-200"><Icon size={14} />{label as string}</button>)}</div></div><div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4"><Info label="TMS source record" value={`${shipment.sourceSystem} · ${shipment.sourceRecordId}`} /><Info label="Dispatcher / owner" value={shipment.dispatcher.name} /><Info label="Carrier / driver" value={`${shipment.carrier.name} · ${shipment.driverName}`} /><Info label="Equipment" value={`${shipment.equipmentType} · ${shipment.driverPhone}`} /><Info label="Origin" value={shipment.origin} icon={<MapPin size={13} />} /><Info label="Destination" value={shipment.destination} icon={<MapPin size={13} />} /><Info label="Pickup appointment" value={time(shipment.pickupAppointment)} icon={<CalendarClock size={13} />} /><Info label="Delivery / current ETA" value={`${time(shipment.deliveryAppointment)} / ${time(shipment.eta)}`} icon={<Clock3 size={13} />} /></div></section>
 
           <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="min-w-0 space-y-6">
-              <section className="rounded border border-white/10 bg-[#11161c]"><div className="border-b border-white/10 px-5 py-4"><h2 className="text-sm font-semibold text-white">Shipment timeline</h2><p className="mt-1 text-xs text-slate-500">One operational story across TMS events, human work, tracking, documents, and exceptions.</p></div><div className="relative p-5"><div className="absolute bottom-6 left-[31px] top-6 w-px bg-white/10" />{orderedTimeline.map((event) => <TimelineRow key={event.id} event={event} />)}</div></section>
+              <section className="rounded border border-white/10 bg-[#11161c]"><div className="border-b border-white/10 px-5 py-4"><h2 className="text-sm font-semibold text-white">Operational timeline</h2><p className="mt-1 text-xs text-slate-500">Imported TMS milestones alongside FreightFlow work, communications, documents, and exceptions.</p></div><div className="relative p-5"><div className="absolute bottom-6 left-[31px] top-6 w-px bg-white/10" />{orderedTimeline.map((event) => <TimelineRow key={event.id} event={event} />)}</div></section>
               <section className="rounded border border-white/10 bg-[#11161c]"><div className="border-b border-white/10 px-5 py-4"><h2 className="text-sm font-semibold text-white">Operations notes</h2><p className="mt-1 text-xs text-slate-500">Keep handoffs clear for the next broker or dispatcher.</p></div><div className="p-5"><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add a handoff note, customer requirement, or carrier context..." className="min-h-24 w-full resize-y rounded border border-white/10 bg-[#0d1217] p-3 text-sm text-slate-300 outline-none placeholder:text-slate-600 focus:border-cyan-400/40" /><div className="mt-3 flex justify-end"><button onClick={() => runAction("customer")} disabled={!note.trim()} className="rounded bg-cyan-400 px-3 py-2 text-xs font-semibold text-[#071014] disabled:cursor-not-allowed disabled:opacity-40">Save note</button></div></div></section>
             </div>
             <aside className="space-y-6">

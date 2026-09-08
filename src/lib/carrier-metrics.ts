@@ -36,7 +36,7 @@ export function carrierMetrics(
     carrier,
     loads,
     exceptions: carrierExceptions,
-    activeLoads: loads.filter((load) => !["delivered", "closed", "invoiced"].includes(load.currentStatus)).length,
+    activeLoads: loads.filter((load) => !["delivered", "closed"].includes(load.currentStatus)).length,
     recentIssues: [
       ...(carrier.averageResponseTime > 24 ? ["Slow carrier response after dispatch"] : []),
       ...(carrier.trackingCompliance < 90 ? ["Missed tracking checkpoints"] : []),

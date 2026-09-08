@@ -6,6 +6,25 @@ This document is for any developer picking up this project — including future 
 
 ---
 
+## Product boundary
+
+FreightFlow is an operational intelligence and action layer, not a transportation management system.
+
+The upstream TMS remains authoritative for quoting, tendering, carrier contracting, load creation, customer master data, shipment records, accounting, and invoicing. FreightFlow should consume those records, never recreate or silently compete with them.
+
+FreightFlow owns the work around the record:
+
+1. Detect what needs attention.
+2. Explain why it matters.
+3. Prioritize who should act.
+4. Recommend or orchestrate the next action.
+5. Track the deadline, communication, and resolution.
+6. Measure operational friction for managers.
+
+New features must fit one of those six responsibilities. A screen that creates, tenders, dispatches, invoices, or edits an authoritative shipment record belongs in the source TMS unless it is explicitly an operational handoff or simulation.
+
+---
+
 ## Folder Structure
 
 ```

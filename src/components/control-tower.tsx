@@ -31,6 +31,7 @@ import {
 import type { CommunicationEvent, Document, Exception, Shipment } from "@/lib/domain";
 import { prioritizedExceptions } from "@/lib/rules";
 import { DemoControls, useDemoSimulation } from "@/components/demo-simulation";
+import { SystemBoundary } from "@/components/system-boundary";
 
 const navItems = [
   ["Control Tower", LayoutDashboard, "/"],
@@ -150,7 +151,7 @@ export function ControlTower({
     [brokerFilter, carrierFilter, customerFilter, dispatcherFilter, filter, prioritized],
   );
   const selected = prioritized.find((item) => item.exception.id === selectedException);
-  const activeShipments = activeShipmentsData.filter((shipment) => !["closed", "invoiced"].includes(shipment.currentStatus));
+  const activeShipments = activeShipmentsData.filter((shipment) => shipment.currentStatus !== "closed");
   const criticalCount = activeExceptions.filter((item) => item.severity === "critical").length;
   const healthyCount = activeShipments.filter((shipment) => shipment.riskScore < 45).length;
   const watchCount = activeShipments.filter((shipment) => shipment.riskScore >= 45 && shipment.riskScore < 65).length;
@@ -191,6 +192,7 @@ export function ControlTower({
         </header>
 
         <main className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8 lg:py-8">
+          <SystemBoundary />
           <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-400">Live operations / East desk</p><h1 className="text-2xl font-semibold tracking-tight text-white lg:text-3xl">Good morning, Maya.</h1><p className="mt-2 text-sm text-slate-500">Here is the work that needs a human today. <span className="text-slate-300">{activeExceptions.length} active exceptions</span> across {activeShipments.length} loads.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-400" />{demo.paused ? "Demo paused" : "Simulated live feed"}</div></div>
           <div className="mb-5 flex max-w-3xl flex-wrap items-center gap-3"><div className="min-w-[min(100%,620px)] flex-1"><DemoControls /></div><Link href="/demo-story" className="flex items-center gap-2 rounded border border-white/10 px-3 py-2 text-[10px] uppercase tracking-wider text-slate-500 hover:border-cyan-400/30 hover:text-cyan-300"><Play size={12} /> Guided demo story</Link></div>
 

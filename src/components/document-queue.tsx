@@ -21,8 +21,9 @@ import {
 } from "lucide-react";
 import type { Document, Shipment } from "@/lib/domain";
 import { buildDocumentQueue, documentAutomationRules, type DocumentQueueItem } from "@/lib/document-queue";
+import { SystemBoundary } from "@/components/system-boundary";
 
-const stages = ["Delivered", "POD Pending", "Documents Received", "Verification Required", "Billing Ready", "Invoiced"];
+const stages = ["Delivered", "POD Pending", "Documents Received", "Verification Required", "Billing Handoff Ready"];
 const filters = ["All", "POD", "Signed BOL", "Lumper receipt", "Accessorial approval", "Customer requirement"];
 
 export function DocumentQueue({ shipments, documents }: { shipments: Shipment[]; documents: Document[] }) {
@@ -45,11 +46,12 @@ export function DocumentQueue({ shipments, documents }: { shipments: Shipment[];
   return (
     <Shell active="Documents">
       <main className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
+        <SystemBoundary />
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-400">Billing readiness</p>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-400">Downstream billing handoff</p>
             <h1 className="text-2xl font-semibold tracking-tight text-white lg:text-3xl">Documents</h1>
-            <p className="mt-2 text-sm text-slate-500">Prevent delivered freight from disappearing into a document chase.</p>
+            <p className="mt-2 text-sm text-slate-500">Make delivered freight ready for the TMS and accounting workflow without a document chase.</p>
           </div>
           <label className="flex h-10 items-center gap-2 rounded border border-white/10 bg-[#11161c] px-3 text-xs text-slate-500">
             <Search size={14} />
@@ -60,8 +62,8 @@ export function DocumentQueue({ shipments, documents }: { shipments: Shipment[];
         <section className="rounded border border-white/10 bg-[#11161c] p-4 lg:p-5">
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-sm font-semibold text-white">Billing readiness pipeline</h2>
-              <p className="mt-1 text-xs text-slate-500">Every delivered load should move left to right without manual status hunting.</p>
+              <h2 className="text-sm font-semibold text-white">Document readiness for downstream billing</h2>
+              <p className="mt-1 text-xs text-slate-500">FreightFlow coordinates the evidence; the TMS and accounting system remain authoritative for invoicing.</p>
             </div>
             <span className="hidden text-[10px] uppercase tracking-wider text-slate-600 sm:block">Live demo queue</span>
           </div>
@@ -70,7 +72,7 @@ export function DocumentQueue({ shipments, documents }: { shipments: Shipment[];
               <div key={stage} className={`relative rounded border p-3 ${index === 1 || index === 2 || index === 3 ? "border-orange-400/25 bg-orange-400/[0.05]" : "border-white/10 bg-white/[0.02]"}`}>
                 <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">{String(index + 1).padStart(2, "0")}</p>
                 <p className="mt-3 text-xs font-medium text-white">{stage}</p>
-                <p className={`mt-1 text-[10px] ${index === 1 || index === 2 || index === 3 ? "text-orange-300" : "text-slate-600"}`}>{index < 4 ? `${index === 0 ? shipments.filter((item) => item.currentStatus === "delivered").length : queue.filter((item) => item.stage === stage).length} loads` : "workflow state"}</p>
+                <p className={`mt-1 text-[10px] ${index === 1 || index === 2 || index === 3 ? "text-orange-300" : "text-slate-600"}`}>{index < 4 ? `${index === 0 ? shipments.filter((item) => item.currentStatus === "delivered").length : queue.filter((item) => item.stage === stage).length} loads` : "handoff state"}</p>
                 {index < stages.length - 1 && <ChevronRight size={14} className="absolute -right-3 top-1/2 z-10 hidden text-slate-700 xl:block" />}
               </div>
             ))}
@@ -91,7 +93,7 @@ export function DocumentQueue({ shipments, documents }: { shipments: Shipment[];
             </div>
             <div className="overflow-hidden rounded border border-white/10 bg-[#11161c]">
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                <div><h2 className="text-sm font-semibold text-white">Document queue</h2><p className="mt-1 text-xs text-slate-500">{filtered.length} items blocking or delaying invoice readiness</p></div>
+                <div><h2 className="text-sm font-semibold text-white">Document queue</h2><p className="mt-1 text-xs text-slate-500">{filtered.length} items blocking or delaying the downstream billing handoff</p></div>
                 <FileCheck2 size={18} className="text-orange-300" />
               </div>
               <div className="divide-y divide-white/[0.07]">
@@ -103,7 +105,7 @@ export function DocumentQueue({ shipments, documents }: { shipments: Shipment[];
 
           <aside className="space-y-6">
             <section className="rounded border border-orange-400/25 bg-orange-400/[0.05] p-5">
-              <div className="flex items-start gap-3"><AlertTriangle size={18} className="mt-0.5 text-orange-300" /><div><p className="text-[10px] uppercase tracking-wider text-orange-300">Revenue at risk</p><p className="mt-2 text-2xl font-semibold text-white">{currency(blockedRevenue)}</p><p className="mt-1 text-xs leading-5 text-slate-400">Delivered freight waiting on a document, approval, or verification before invoicing.</p></div></div>
+              <div className="flex items-start gap-3"><AlertTriangle size={18} className="mt-0.5 text-orange-300" /><div><p className="text-[10px] uppercase tracking-wider text-orange-300">Downstream billing blocked</p><p className="mt-2 text-2xl font-semibold text-white">{currency(blockedRevenue)}</p><p className="mt-1 text-xs leading-5 text-slate-400">Delivered freight waiting on evidence or verification before the source billing workflow can proceed.</p></div></div>
               <div className="mt-5 space-y-3 border-t border-orange-300/10 pt-4 text-xs"><Breakdown label="POD missing" value={counts.pod} /><Breakdown label="Accessorial approval" value={counts.accessorial} /><Breakdown label="Verification" value={counts.verification} /><Breakdown label="Customer requirement" value={counts.customer} /></div>
             </section>
             <section className="rounded border border-white/10 bg-[#11161c] p-5">

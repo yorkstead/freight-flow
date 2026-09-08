@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Bell, Check, ChevronRight, CircleDot, FileText, LayoutDashboard, Menu, MessageSquare, PackageSearch, Send, Settings, Truck, UserCheck, Users, Zap } from "lucide-react";
 import type { CommunicationEvent, Customer, Exception, Shipment } from "@/lib/domain";
+import { SystemBoundary } from "@/components/system-boundary";
 import { customerProfiles, notificationEvents, previewMessage, updatesDue, type CommunicationMode, type NotificationChannel } from "@/lib/customer-comms";
 
 export function CustomerCommunications({ communications, customers, exceptions, shipments }: { communications: CommunicationEvent[]; customers: Customer[]; exceptions: Exception[]; shipments: Shipment[] }) {
@@ -18,7 +19,7 @@ export function CustomerCommunications({ communications, customers, exceptions, 
   const message = selected ? previewMessage(selected, channel, customMessage) : "No customer update is currently due.";
 
   return <Shell active="Customer updates">
-    <main className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8">
+    <main className="mx-auto max-w-[1500px] px-4 py-6 lg:px-8 lg:py-8"><SystemBoundary />
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-cyan-400">Customer communication layer</p><h1 className="text-2xl font-semibold tracking-tight text-white lg:text-3xl">Customer updates</h1><p className="mt-2 text-sm text-slate-500">Automate routine checkpoints. Keep service failures in human hands.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-400" />{due.length} updates due</div></div>
       <section className="grid gap-3 sm:grid-cols-3"><Metric label="Updates due" value={due.length} detail="SLA checkpoints requiring work" tone="cyan" /><Metric label="Approval required" value={due.filter((item) => item.urgency === "approval required").length} detail="broker review before sending" tone="amber" /><Metric label="Critical escalations" value={due.filter((item) => item.urgency === "critical escalation").length} detail="broker + operations manager" tone="red" /></section>
       <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">

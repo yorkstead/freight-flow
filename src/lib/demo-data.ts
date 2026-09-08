@@ -146,6 +146,8 @@ export const shipments: Shipment[] = Array.from({ length: 80 }, (_, index) => {
   return {
     id: `shipment-${index + 1}`,
     loadNumber: `FF-${String(24000 + index)}`,
+    sourceSystem: "TMS",
+    sourceRecordId: `TMS-${String(24000 + index)}`,
     customer,
     broker: brokers[index % brokers.length],
     dispatcher: dispatchers[index % dispatchers.length],

@@ -1,7 +1,4 @@
 export const shipmentStatuses = [
-  "quoted",
-  "tendered",
-  "covered",
   "dispatched",
   "en_route_pickup",
   "at_pickup",
@@ -11,7 +8,6 @@ export const shipmentStatuses = [
   "delivered",
   "pod_pending",
   "billing_ready",
-  "invoiced",
   "closed",
 ] as const;
 
@@ -55,6 +51,8 @@ export interface Carrier {
 export interface Shipment {
   id: string;
   loadNumber: string;
+  sourceSystem: "TMS";
+  sourceRecordId: string;
   customer: Customer;
   broker: Person;
   dispatcher: Person;
@@ -77,7 +75,7 @@ export interface Shipment {
   customerUpdateDue: string;
   podStatus: DocumentStatus;
   bolStatus: DocumentStatus;
-  billingStatus: "not_ready" | "ready" | "held" | "invoiced";
+  billingStatus: "not_ready" | "ready" | "held";
   riskScore: number;
   riskReasons: string[];
   tags: string[];
