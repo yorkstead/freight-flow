@@ -2,6 +2,7 @@
   "name": "yorkstead-starter",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "bun@1.3.14",
   "description": "Yorkstead Systems — minimal Next.js App Router starter. Fork for every new project.",
   "scripts": {
     "dev": "next dev",

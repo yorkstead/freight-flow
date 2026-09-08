@@ -35,10 +35,10 @@ cp .env.example .env
 # Edit .env and add your GOOGLE_GENERATIVE_AI_API_KEY
 
 # 3. Install dependencies
-npm install
+bun install
 
 # 4. Start the dev server
-npm run dev
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) — you're running.
@@ -49,10 +49,10 @@ Open [http://localhost:3000](http://localhost:3000) — you're running.
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Starts the development server with hot reload |
-| `npm run build` | Creates an optimized production build |
-| `npm start` | Runs the production build locally |
-| `npm run lint` | Runs ESLint |
+| `bun run dev` | Starts the development server with hot reload |
+| `bun run build` | Creates an optimized production build |
+| `bun start` | Runs the production build locally |
+| `bun run lint` | Runs ESLint |
 
 ---
 
@@ -92,8 +92,8 @@ This works on any VPS, dedicated server, or cloud VM (DigitalOcean, Hetzner, AWS
 ### Any Node.js Host
 
 ```bash
-npm run build
-npm start
+bun run build
+bun start
 ```
 
 The `output: "standalone"` setting in `next.config.ts` means the build output is self-contained — you can copy the `.next/standalone` directory to any server with Node.js and run `node server.js`.
@@ -119,7 +119,7 @@ cd my-new-project
 #    - src/actions/example.ts (replace with your own)
 
 # 5. Start building
-npm run dev
+bun run dev
 ```
 
 ---
@@ -150,9 +150,9 @@ cp /path/to/backup/.env .env
 # e.g., psql mydb < backup.sql
 
 # 4. Build and run
-npm install
-npm run build
-npm start
+bun install
+bun run build
+bun start
 ```
 
 That's it. Any developer who can read TypeScript can maintain this.

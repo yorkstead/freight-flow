@@ -5,7 +5,7 @@
 #   docker compose up --build
 #
 # This runs the app in production mode on port 3000.
-# For local development, use `npm run dev` instead — it's faster with HMR.
+# For local development, use `bun run dev` instead — it's faster with HMR.
 #
 # When your project needs a database, add it as a service here.
 # Example (uncomment when needed):
