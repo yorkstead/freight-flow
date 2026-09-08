@@ -107,6 +107,7 @@ export const carriers: Carrier[] = carrierNames.map((name, index) => {
     onTimePickupRate: pickup,
     onTimeDeliveryRate: delivery,
     averageResponseTime: 8 + ((index * 7) % 28),
+    trackingCompliance: 84 + ((index * 5) % 15),
     exceptionRate: 2 + (index % 8),
     podTurnaround: 10 + ((index * 2) % 20),
     score: Math.round((pickup + delivery - index % 7) / 2),

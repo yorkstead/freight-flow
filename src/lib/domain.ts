@@ -46,6 +46,7 @@ export interface Carrier {
   onTimePickupRate: number;
   onTimeDeliveryRate: number;
   averageResponseTime: number;
+  trackingCompliance: number;
   exceptionRate: number;
   podTurnaround: number;
   score: number;
@@ -135,4 +136,3 @@ export interface TimelineEvent {
   title: string;
   detail: string;
 }
-
