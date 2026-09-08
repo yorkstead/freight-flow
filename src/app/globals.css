@@ -1,14 +1,28 @@
-/* Tailwind v4 — CSS-first configuration. No tailwind.config.js needed. */
 @import "tailwindcss";
 
-/*
- * Add custom theme overrides here using @theme.
- * Example:
- *
- * @theme {
- *   --color-brand: #2563eb;
- *   --font-sans: "Inter", sans-serif;
- * }
- *
- * Then use in markup: className="text-brand font-sans"
- */
+:root {
+  color-scheme: dark;
+}
+
+* {
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+html {
+  background: #0b0e12;
+}
+
+body {
+  margin: 0;
+  background: #0b0e12;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgb(34 211 238 / 0.25);
+}

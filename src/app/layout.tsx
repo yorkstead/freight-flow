@@ -8,11 +8,11 @@ import "./globals.css";
  * Global providers (auth, theme, etc.) go here when you need them.
  */
 
-const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "Yorkstead App";
+const appName = "FreightFlow Control Tower";
 
 export const metadata: Metadata = {
   title: appName,
-  description: `${appName} — built by Yorkstead Systems`,
+  description: `${appName} — operational intelligence for freight teams`,
 };
 
 export default function RootLayout({
@@ -22,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-gray-50 text-gray-900 antialiased">
+      <body className="min-h-screen bg-[#0b0e12] text-slate-100 antialiased">
         {children}
       </body>
     </html>

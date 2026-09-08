@@ -7,24 +7,27 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "next": "^15",
+    "@ai-sdk/google": "^1",
+    "ai": "^4",
+    "lucide-react": "^1.43.0",
+    "next": "^16.3.4",
     "react": "^19",
     "react-dom": "^19",
-    "ai": "^4",
-    "@ai-sdk/google": "^1"
+    "recharts": "^3.10.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "tailwindcss": "^4",
-    "@tailwindcss/postcss": "^4",
-    "postcss": "^8",
     "eslint": "^9",
-    "eslint-config-next": "^15"
+    "eslint-config-next": "^16.3.4",
+    "postcss": "^8",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
