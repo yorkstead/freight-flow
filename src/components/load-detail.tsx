@@ -39,7 +39,7 @@ const navItems = [
   ["Loads", PackageSearch, "#"],
   ["Exceptions", AlertTriangle, "#"],
   ["Carriers", Truck, "#"],
-  ["Documents", FileText, "#"],
+  ["Documents", FileText, "/documents"],
   ["Customers", Users, "#"],
   ["Analytics", CircleDot, "#"],
   ["Settings", Settings, "#"],
