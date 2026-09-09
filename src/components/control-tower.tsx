@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -177,7 +178,7 @@ export function ControlTower({
     <div className="min-h-screen bg-[#0b0e12] text-slate-100">
       <aside className={`fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-white/10 bg-[#101419] transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
-          <div><div className="flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-white"><span className="grid h-7 w-7 place-items-center rounded bg-cyan-400 text-[#071014]"><Zap size={15} fill="currentColor" /></span>FREIGHTFLOW</div><p className="mt-1 pl-9 text-[10px] uppercase tracking-[0.24em] text-slate-500">Control tower</p></div>
+          <div><div className="flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-white"><Image src="/brand/freightflow-mark.svg" alt="" width={28} height={28} />FREIGHTFLOW</div><p className="mt-1 pl-9 text-[10px] uppercase tracking-[0.24em] text-slate-500">Control tower</p></div>
           <button onClick={() => setSidebarOpen(false)} className="rounded p-1 text-slate-500 hover:bg-white/5 hover:text-white lg:hidden" aria-label="Close navigation"><X size={18} /></button>
         </div>
         <div className="px-3 py-5"><p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">Operations</p><nav className="space-y-1">{navItems.map(([label, Icon, href]) => href === "#" ? <button key={label} onClick={() => { setActiveNav(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition ${activeNav === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}`}><Icon size={17} strokeWidth={1.7} /><span>{label}</span>{label === "Exceptions" && <span className="ml-auto rounded-full bg-red-400/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">{exceptions.length}</span>}</button> : <Link key={label} href={href} onClick={() => { setActiveNav(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition ${activeNav === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}`}><Icon size={17} strokeWidth={1.7} /><span>{label}</span></Link>)}</nav></div>
