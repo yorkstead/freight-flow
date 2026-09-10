@@ -1,4 +1,8 @@
 "use client";
+import { MobileNavigation } from "@/components/mobile-navigation";
+import { useDemoSession } from "@/components/demo-session";
+import { DEMO_NOW } from "@/lib/demo-clock";
+
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -11,7 +15,6 @@ import {
   FileCheck2,
   FileText,
   LayoutDashboard,
-  Menu,
   PackageSearch,
   Search,
   Settings,
@@ -19,14 +22,16 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import type { Document, Shipment } from "@/lib/domain";
+
 import { buildDocumentQueue, documentAutomationRules, type DocumentQueueItem } from "@/lib/document-queue";
 import { SystemBoundary } from "@/components/system-boundary";
 
 const stages = ["Delivered", "POD Pending", "Documents Received", "Verification Required", "Billing Handoff Ready"];
 const filters = ["All", "POD", "Signed BOL", "Lumper receipt", "Accessorial approval", "Customer requirement"];
 
-export function DocumentQueue({ shipments, documents }: { shipments: Shipment[]; documents: Document[] }) {
+export function DocumentQueue() {
+  const shared = useDemoSession();
+  const { shipments, documents } = shared;
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const queue = useMemo(() => buildDocumentQueue(shipments, documents), [shipments, documents]);
@@ -135,8 +140,8 @@ function Info({ label, value }: { label: string; value: string }) { return <div>
 function Breakdown({ label, value }: { label: string; value: number }) { return <div className="flex items-center justify-between"><span className="text-slate-400">{label}</span><span className="font-mono text-white">{value}</span></div>; }
 function Metric({ label, value, detail, tone = "cyan" }: { label: string; value: number | string; detail: string; tone?: "cyan" | "amber" | "red" }) { return <div className="rounded border border-white/10 bg-[#11161c] p-4"><p className={`text-[10px] uppercase tracking-wider ${tone === "red" ? "text-red-300" : tone === "amber" ? "text-amber-200" : "text-cyan-300"}`}>{label}</p><p className="mt-2 text-2xl font-semibold text-white">{value}</p><p className="mt-1 text-xs text-slate-600">{detail}</p></div>; }
 function currency(value: number) { return `$${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`; }
-function formatDate(value: string) { return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
-function relativeTime(value: string) { const hours = Math.max(1, Math.round((Date.now() - new Date(value).getTime()) / 3_600_000)); return hours < 24 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`; }
+function formatDate(value: string) { return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Denver" }); }
+function relativeTime(value: string) { const hours = Math.max(1, Math.round((DEMO_NOW - new Date(value).getTime()) / 3_600_000)); return hours < 24 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`; }
 
-const nav = [["Control Tower", LayoutDashboard, "/"], ["My Queue", Zap, "/my-queue"], ["Loads", PackageSearch, "#"], ["Exceptions", AlertTriangle, "#"], ["Carriers", Truck, "/carriers"], ["Documents", FileText, "/documents"], ["Customers", Users, "#"], ["Analytics", CircleDot, "#"], ["Settings", Settings, "/settings/automation-rules"]] as const;
-function Shell({ active, children }: { active: string; children: React.ReactNode }) { return <div className="min-h-screen bg-[#0b0e12] text-slate-100"><aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/10 bg-[#101419] lg:flex"><div className="flex h-20 items-center border-b border-white/10 px-5"><div className="flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-white"><span className="grid h-7 w-7 place-items-center rounded bg-cyan-400 text-[#071014]"><Zap size={15} fill="currentColor" /></span>FREIGHTFLOW</div></div><nav className="space-y-1 px-3 py-5">{nav.map(([label, Icon, href]) => <Link key={label} href={href} className={`flex items-center gap-3 rounded px-3 py-2.5 text-sm ${active === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5"}`}><Icon size={17} /><span>{label}</span></Link>)}</nav><div className="mt-auto border-t border-white/10 p-4 text-xs text-slate-500">Maya Chen · Dispatcher</div></aside><div className="lg:pl-64"><header className="sticky top-0 z-20 flex h-20 items-center gap-3 border-b border-white/10 bg-[#0b0e12]/95 px-4 backdrop-blur lg:px-8"><button className="text-slate-400 lg:hidden" aria-label="Open navigation"><Menu size={20} /></button><div className="hidden items-center gap-2 text-xs text-slate-500 md:flex"><Link href="/">Control Tower</Link><ChevronRight size={13} /><span className="text-slate-200">{active}</span></div><div className="ml-auto"><Bell size={18} className="text-slate-400" /></div></header>{children}</div></div>; }
+const nav = [["Control Tower", LayoutDashboard, "/"], ["My Queue", Zap, "/my-queue"], ["Loads", PackageSearch, "/loads"], ["Exceptions", AlertTriangle, "/my-queue"], ["Carriers", Truck, "/carriers"], ["Documents", FileText, "/documents"], ["Customers", Users, "/customer-updates"], ["Analytics", CircleDot, "/analytics"], ["Settings", Settings, "/settings/automation-rules"]] as const;
+function Shell({ active, children }: { active: string; children: React.ReactNode }) { return <div className="min-h-screen bg-[#0b0e12] text-slate-100"><aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/10 bg-[#101419] lg:flex"><div className="flex h-20 items-center border-b border-white/10 px-5"><div className="flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-white"><span className="grid h-7 w-7 place-items-center rounded bg-cyan-400 text-[#071014]"><Zap size={15} fill="currentColor" /></span>FREIGHTFLOW</div></div><nav className="space-y-1 px-3 py-5">{nav.map(([label, Icon, href]) => <Link key={label} href={href} className={`flex items-center gap-3 rounded px-3 py-2.5 text-sm ${active === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5"}`}><Icon size={17} /><span>{label}</span></Link>)}</nav><div className="mt-auto border-t border-white/10 p-4 text-xs text-slate-500">Maya Chen · Dispatcher</div></aside><div className="lg:pl-64"><header className="sticky top-0 z-20 flex h-20 items-center gap-3 border-b border-white/10 bg-[#0b0e12]/95 px-4 backdrop-blur lg:px-8"><MobileNavigation /><div className="hidden items-center gap-2 text-xs text-slate-500 md:flex"><Link href="/">Control Tower</Link><ChevronRight size={13} /><span className="text-slate-200">{active}</span></div><div className="ml-auto"><Bell size={18} className="text-slate-400" /></div></header>{children}</div></div>; }

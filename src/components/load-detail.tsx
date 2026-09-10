@@ -1,7 +1,10 @@
 "use client";
+import { useDemoSession, dispatchDemo } from "@/components/demo-session";
+import { DEMO_NOW } from "@/lib/demo-clock";
+
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -37,12 +40,12 @@ import { SystemBoundary } from "@/components/system-boundary";
 const navItems = [
   ["Control Tower", LayoutDashboard, "/"],
   ["My Queue", Zap, "/my-queue"],
-  ["Loads", PackageSearch, "#"],
-  ["Exceptions", AlertTriangle, "#"],
-  ["Carriers", Truck, "#"],
+  ["Loads", PackageSearch, "/loads"],
+  ["Exceptions", AlertTriangle, "/my-queue"],
+  ["Carriers", Truck, "/carriers"],
   ["Documents", FileText, "/documents"],
-  ["Customers", Users, "#"],
-  ["Analytics", CircleDot, "#"],
+  ["Customers", Users, "/customer-updates"],
+  ["Analytics", CircleDot, "/analytics"],
   ["Settings", Settings, "/settings/automation-rules"],
 ] as const;
 
@@ -50,43 +53,43 @@ type Action = "carrier" | "eta" | "customer" | "exception" | "document" | "escal
 
 const actionLabels: Record<Action, string> = {
   carrier: "Carrier contact logged",
-  eta: "ETA update saved",
-  customer: "Customer update sent",
-  exception: "Exception draft created",
-  document: "Document marked received",
-  escalate: "Escalated to carrier relations",
+  eta: "ETA review simulated — source unchanged",
+  customer: "Customer update simulated — not sent",
+  exception: "Exception draft preview — not submitted",
+  document: "POD received in demo — no file uploaded",
+  escalate: "Escalation preview — not sent",
 };
 
 function relative(date: string) {
-  const minutes = Math.round((Date.now() - new Date(date).getTime()) / 60000);
+  const minutes = Math.round((DEMO_NOW - new Date(date).getTime()) / 60000);
   const amount = Math.abs(minutes);
   return minutes < 0 ? `in ${amount < 60 ? `${amount}m` : `${Math.round(amount / 60)}h`}` : `${Math.max(1, amount < 60 ? amount : Math.round(amount / 60))}${amount < 60 ? "m" : "h"} ago`;
 }
 
 function time(date: string) {
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(date));
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" }).format(new Date(date));
 }
 
-export function LoadDetail({
-  shipment,
-  exceptions,
-  communications,
-  documents,
-  timeline,
-}: {
+export function LoadDetail(props: {
   shipment: Shipment;
   exceptions: Exception[];
   communications: CommunicationEvent[];
   documents: Document[];
   timeline: TimelineEvent[];
 }) {
+  const shared = useDemoSession();
+  const shipment = shared.shipments.find(item => item.id === props.shipment.id) ?? props.shipment;
+  const exceptions = shared.exceptions.filter(item => item.shipmentId === shipment.id);
+  const communications = shared.communications.filter(item => item.shipmentId === shipment.id);
+  const documents = shared.documents.filter(item => item.shipmentId === shipment.id);
+  const timeline = props.timeline;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [receivedDocuments, setReceivedDocuments] = useState<string[]>([]);
+  const receivedDocuments = shared.session.received.filter(id => id === shipment.id);
   const [note, setNote] = useState("");
   const activeExceptions = exceptions.filter((item) => item.status !== "resolved");
   const attention = activeExceptions[0];
-  const orderedTimeline = useMemo(() => {
+  const orderedTimeline = (() => {
     const generated: TimelineEvent[] = [
       { id: "source-sync", shipmentId: shipment.id, timestamp: new Date(new Date(shipment.pickupAppointment).getTime() - 48 * 3600000).toISOString(), type: "status", title: "TMS record synchronized", detail: `Authoritative load and appointment data received from ${shipment.sourceSystem}.` },
       { id: "dispatch", shipmentId: shipment.id, timestamp: new Date(new Date(shipment.pickupAppointment).getTime() - 18 * 3600000).toISOString(), type: "status", title: "Driver dispatched", detail: `${shipment.driverName} assigned to the load.` },
@@ -96,10 +99,11 @@ export function LoadDetail({
       ...documents.filter((item) => item.receivedAt).map((item) => ({ id: item.id, shipmentId: item.shipmentId, timestamp: item.receivedAt as string, type: "document" as const, title: `${item.type} received`, detail: `${item.type} attached to the shipment record.` })),
     ];
     return generated.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [activeExceptions, communications, documents, shipment, timeline]);
+  })();
 
   const runAction = (action: Action) => {
-    if (action === "document") setReceivedDocuments((current) => [...current, "manual"]);
+    if (action === "document") dispatchDemo({ type: "document", shipmentId: shipment.id });
+    if (action === "customer") dispatchDemo({ type: "communication", shipmentId: shipment.id, text: "Customer update preview from load detail" });
     setToast(actionLabels[action]);
     window.setTimeout(() => setToast(null), 2400);
   };

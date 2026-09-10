@@ -1,4 +1,7 @@
 "use client";
+import { useDemoSession, dispatchDemo } from "@/components/demo-session";
+import { DEMO_NOW } from "@/lib/demo-clock";
+
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -29,7 +32,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import type { CommunicationEvent, Document, Exception, Shipment } from "@/lib/domain";
+import type { Exception, Shipment } from "@/lib/domain";
 import { prioritizedExceptions } from "@/lib/rules";
 import { DemoControls, useDemoSimulation } from "@/components/demo-simulation";
 import { SystemBoundary } from "@/components/system-boundary";
@@ -37,13 +40,13 @@ import { SystemBoundary } from "@/components/system-boundary";
 const navItems = [
   ["Control Tower", LayoutDashboard, "/"],
   ["My Queue", Zap, "/my-queue"],
-  ["Loads", PackageSearch, "#"],
-  ["Exceptions", AlertTriangle, "#"],
+  ["Loads", PackageSearch, "/loads"],
+  ["Exceptions", AlertTriangle, "/my-queue"],
   ["Carriers", Truck, "/carriers"],
   ["Documents", FileText, "/documents"],
   ["Customer updates", Users, "/customer-updates"],
-  ["Analytics", CircleDot, "#"],
-  ["Settings", Settings, "#"],
+  ["Analytics", CircleDot, "/analytics"],
+  ["Settings", Settings, "/settings/automation-rules"],
 ] as const;
 
 const quickFilters = [
@@ -61,14 +64,14 @@ const quickFilters = [
 type QueueFilter = (typeof quickFilters)[number][0];
 
 function formatRelative(date: string) {
-  const minutes = Math.round((Date.now() - new Date(date).getTime()) / 60000);
+  const minutes = Math.round((DEMO_NOW - new Date(date).getTime()) / 60000);
   const absolute = Math.abs(minutes);
   if (minutes < 0) return `in ${absolute < 60 ? `${absolute}m` : `${Math.round(absolute / 60)}h`}`;
   return absolute < 60 ? `${Math.max(1, absolute)}m ago` : `${Math.round(absolute / 60)}h ago`;
 }
 
 function formatTime(date: string) {
-  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(date));
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" }).format(new Date(date));
 }
 
 function statusLabel(status: Shipment["currentStatus"]) {
@@ -96,17 +99,9 @@ function exceptionMatches(exception: Exception, shipment: Shipment, filter: Queu
   return exception.category === "carrier";
 }
 
-export function ControlTower({
-  shipments,
-  exceptions,
-  communications,
-  documents,
-}: {
-  shipments: Shipment[];
-  exceptions: Exception[];
-  communications: CommunicationEvent[];
-  documents: Document[];
-}) {
+export function ControlTower() {
+  const shared = useDemoSession();
+  const { shipments, exceptions, communications, documents } = shared;
   const [activeNav, setActiveNav] = useState("Control Tower");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedException, setSelectedException] = useState<string | null>(null);
@@ -117,24 +112,8 @@ export function ControlTower({
   const [carrierFilter, setCarrierFilter] = useState("all");
   const currentUser = "Maya Chen";
   const demo = useDemoSimulation();
-  const activeShipmentsData = useMemo(() => {
-    if (!demo.injectedException && !demo.lastEvent) return shipments;
-    const target = shipments[0];
-    if (!target) return shipments;
-    return shipments.map((shipment) => shipment.id === target.id ? {
-      ...shipment,
-      currentStatus: demo.injectedException === "late pickup" ? "en_route_pickup" : demo.injectedException === "late delivery" ? "in_transit" : shipment.currentStatus,
-      trackingState: demo.injectedException === "stale tracking" || demo.injectedException === "carrier non-response" ? "stale" : shipment.trackingState,
-      riskScore: demo.injectedException ? 92 : shipment.riskScore,
-      riskReasons: demo.injectedException ? [`Demo: ${demo.injectedException}`, "Human action required"] : shipment.riskReasons,
-    } : shipment);
-  }, [demo.injectedException, demo.lastEvent, shipments]);
-  const activeExceptions = useMemo(() => {
-    if (!demo.injectedException || !activeShipmentsData[0]) return exceptions;
-    const target = activeShipmentsData[0];
-    const titles: Record<string, string> = { "stale tracking": "Stale tracking", "late pickup": "Late pickup risk", "late delivery": "Delivery appointment at risk", "carrier non-response": "Carrier non-response", "missing POD": "POD missing", "equipment breakdown": "Equipment issue" };
-    return [...exceptions.filter((exception) => exception.shipmentId !== target.id), { id: "demo-injected-exception", shipmentId: target.id, severity: "critical" as const, category: demo.injectedException === "missing POD" ? "documentation" as const : "carrier" as const, detectedAt: new Date().toISOString(), title: titles[demo.injectedException], description: `Presenter injected ${demo.injectedException} to demonstrate surfaced operational work.`, recommendedAction: demo.injectedException === "carrier non-response" ? "Contact carrier dispatch and escalate after two attempts." : "Review the load and take the recommended exception action.", owner: target.dispatcher.name, dueAt: new Date().toISOString(), status: "open" as const }];
-  }, [activeShipmentsData, demo.injectedException, exceptions]);
+  const activeShipmentsData = shipments;
+  const activeExceptions = exceptions.filter(item => item.status !== "resolved" && item.status !== "snoozed");
   const shipmentById = useMemo(() => new Map(activeShipmentsData.map((shipment) => [shipment.id, shipment])), [activeShipmentsData]);
   const prioritized = useMemo(() => prioritizedExceptions(activeExceptions, activeShipmentsData), [activeExceptions, activeShipmentsData]);
 
@@ -154,17 +133,18 @@ export function ControlTower({
   const selected = prioritized.find((item) => item.exception.id === selectedException);
   const activeShipments = activeShipmentsData.filter((shipment) => shipment.currentStatus !== "closed");
   const criticalCount = activeExceptions.filter((item) => item.severity === "critical").length;
+  const criticalLoadCount = activeShipments.filter(shipment => shipment.riskScore >= 82).length;
   const healthyCount = activeShipments.filter((shipment) => shipment.riskScore < 45).length;
   const watchCount = activeShipments.filter((shipment) => shipment.riskScore >= 45 && shipment.riskScore < 65).length;
   const actionCount = activeShipments.filter((shipment) => shipment.riskScore >= 65 && shipment.riskScore < 82).length;
-  const latePickups = activeShipments.filter((shipment) => new Date(shipment.pickupAppointment) < new Date() && !["loaded", "in_transit", "at_delivery", "delivered", "pod_pending"].includes(shipment.currentStatus)).length;
+  const latePickups = activeShipments.filter((shipment) => new Date(shipment.pickupAppointment) < new Date(DEMO_NOW) && !["loaded", "in_transit", "at_delivery", "delivered", "pod_pending"].includes(shipment.currentStatus)).length;
   const lateDeliveries = activeShipments.filter((shipment) => new Date(shipment.eta) > new Date(shipment.deliveryAppointment) && ["in_transit", "at_delivery"].includes(shipment.currentStatus)).length;
   const missingPod = activeShipmentsData.filter((shipment) => shipment.podStatus === "missing").length;
-  const customerUpdatesDue = activeShipmentsData.filter((shipment) => new Date(shipment.customerUpdateDue) <= new Date()).length;
+  const customerUpdatesDue = activeShipmentsData.filter((shipment) => new Date(shipment.customerUpdateDue) <= new Date(DEMO_NOW)).length;
   const upcoming = [...activeShipments].sort((a, b) => new Date(a.pickupAppointment).getTime() - new Date(b.pickupAppointment).getTime()).slice(0, 5);
   const activity = [
-    ...communications.map((event) => ({ id: event.id, time: event.timestamp, icon: event.type === "customer_update" ? Users : Phone, title: event.type === "customer_update" ? "Customer notification sent" : "Carrier response received", detail: `${event.party} · ${event.summary}` })),
-    ...documents.filter((document) => document.status === "received" || document.status === "verified").map((document) => ({ id: document.id, time: document.receivedAt ?? new Date().toISOString(), icon: FileText, title: `${document.type} received`, detail: `${shipmentById.get(document.shipmentId)?.loadNumber} · ${document.status}` })),
+    ...communications.map((event) => ({ id: event.id, time: event.timestamp, icon: event.type === "customer_update" ? Users : Phone, title: event.type === "customer_update" ? "Simulated customer update" : "Carrier response received", detail: `${event.party} · ${event.summary}` })),
+    ...documents.filter((document) => document.status === "received" || document.status === "verified").map((document) => ({ id: document.id, time: document.receivedAt ?? new Date(DEMO_NOW).toISOString(), icon: FileText, title: `${document.type} received`, detail: `${shipmentById.get(document.shipmentId)?.loadNumber} · ${document.status}` })),
     ...activeExceptions.filter((exception) => exception.status === "in_progress").map((exception) => ({ id: exception.id, time: exception.detectedAt, icon: AlertTriangle, title: "Exception escalated", detail: `${shipmentById.get(exception.shipmentId)?.loadNumber} · ${exception.title}` })),
   ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 6);
   const filterConfigs: { label: string; value: string; setter: (value: string) => void; options: { id: string; name: string }[] }[] = [
@@ -181,7 +161,7 @@ export function ControlTower({
           <div><div className="flex items-center gap-2 text-sm font-semibold tracking-[0.2em] text-white"><Image src="/brand/freightflow-mark.svg" alt="" width={28} height={28} />FREIGHTFLOW</div><p className="mt-1 pl-9 text-[10px] uppercase tracking-[0.24em] text-slate-500">Control tower</p></div>
           <button onClick={() => setSidebarOpen(false)} className="rounded p-1 text-slate-500 hover:bg-white/5 hover:text-white lg:hidden" aria-label="Close navigation"><X size={18} /></button>
         </div>
-        <div className="px-3 py-5"><p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">Operations</p><nav className="space-y-1">{navItems.map(([label, Icon, href]) => href === "#" ? <button key={label} onClick={() => { setActiveNav(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition ${activeNav === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}`}><Icon size={17} strokeWidth={1.7} /><span>{label}</span>{label === "Exceptions" && <span className="ml-auto rounded-full bg-red-400/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">{exceptions.length}</span>}</button> : <Link key={label} href={href} onClick={() => { setActiveNav(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition ${activeNav === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}`}><Icon size={17} strokeWidth={1.7} /><span>{label}</span></Link>)}</nav></div>
+        <div className="px-3 py-5"><p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">Operations</p><nav className="space-y-1">{navItems.map(([label, Icon, href]) => <Link key={label} href={href} onClick={() => { setActiveNav(label); setSidebarOpen(false); }} className={`flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm transition ${activeNav === label ? "bg-cyan-400/10 text-cyan-300" : "text-slate-400 hover:bg-white/5 hover:text-slate-100"}`}><Icon size={17} strokeWidth={1.7} /><span>{label}</span></Link>)}</nav></div>
         <div className="mt-auto border-t border-white/10 p-4"><div className="flex items-center gap-3 rounded bg-white/[0.03] p-3"><div className="grid h-8 w-8 place-items-center rounded-full bg-cyan-400/15 text-xs font-semibold text-cyan-300">MC</div><div className="min-w-0"><p className="truncate text-xs font-medium text-slate-200">Maya Chen</p><p className="text-[10px] text-slate-500">Dispatcher · East desk</p></div><PanelLeftClose size={14} className="ml-auto text-slate-600" /></div></div>
       </aside>
 
@@ -202,7 +182,7 @@ export function ControlTower({
               ["Active loads", activeShipments.length, "network", "text-white"],
               ["Healthy", healthyCount, `${Math.round((healthyCount / activeShipments.length) * 100)}% on plan`, "text-emerald-300"],
               ["Attention", activeExceptions.length, `${actionCount} action required`, "text-amber-200"],
-              ["Critical", criticalCount, "needs owner now", "text-red-300"],
+              ["Critical exceptions", criticalCount, "needs owner now", "text-red-300"],
               ["Late pickups", latePickups, "appointment risk", "text-orange-300"],
               ["Late deliveries", lateDeliveries, "ETA past appointment", "text-orange-300"],
               ["Missing POD", missingPod, "billing exposure", "text-amber-200"],
@@ -212,13 +192,13 @@ export function ControlTower({
 
           <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0 rounded border border-white/10 bg-[#11161c]">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4"><div><h2 className="text-sm font-semibold text-white">Operations health</h2><p className="mt-1 text-xs text-slate-500">Risk bands turn 80 loads into a clear work plan.</p></div><span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-600"><CircleDot size={12} className="text-emerald-400" /> live risk model</span></div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4"><div><h2 className="text-sm font-semibold text-white">Operations health</h2><p className="mt-1 text-xs text-slate-500">Risk bands summarize the current demo loads.</p></div><span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-600"><CircleDot size={12} className="text-emerald-400" /> live risk model</span></div>
               <div className="grid gap-5 p-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
                 <div className="relative mx-auto grid h-36 w-36 place-items-center rounded-full" style={{ background: `conic-gradient(#34d399 0deg ${(healthyCount / activeShipments.length) * 360}deg, #fbbf24 ${(healthyCount / activeShipments.length) * 360}deg ${((healthyCount + watchCount) / activeShipments.length) * 360}deg, #fb923c ${((healthyCount + watchCount) / activeShipments.length) * 360}deg ${((healthyCount + watchCount + actionCount) / activeShipments.length) * 360}deg, #f87171 ${((healthyCount + watchCount + actionCount) / activeShipments.length) * 360}deg 360deg)` }}><div className="grid h-24 w-24 place-items-center rounded-full bg-[#11161c]"><div className="text-center"><p className="text-2xl font-semibold text-white">{activeShipments.length}</p><p className="text-[9px] uppercase tracking-wider text-slate-600">active loads</p></div></div></div>
-                <div className="grid gap-3 sm:grid-cols-2">{[["Healthy", healthyCount, "No intervention", "bg-emerald-400"], ["Watch", watchCount, "Monitor next event", "bg-amber-300"], ["Action required", actionCount, "Owner needed today", "bg-orange-400"], ["Critical", criticalCount, "Intervene now", "bg-red-400"]].map(([label, count, detail, dot]) => <div key={label} className="flex items-start gap-2.5"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} /><div><p className="text-sm text-slate-200">{label} <span className="ml-1 font-mono text-slate-500">{count}</span></p><p className="mt-0.5 text-[11px] text-slate-600">{detail}</p></div></div>)}</div>
+                <div className="grid gap-3 sm:grid-cols-2">{[["Healthy", healthyCount, "No intervention", "bg-emerald-400"], ["Watch", watchCount, "Monitor next event", "bg-amber-300"], ["Action required", actionCount, "Owner needed today", "bg-orange-400"], ["Critical", criticalLoadCount, "Intervene now", "bg-red-400"]].map(([label, count, detail, dot]) => <div key={label} className="flex items-start gap-2.5"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} /><div><p className="text-sm text-slate-200">{label} <span className="ml-1 font-mono text-slate-500">{count}</span></p><p className="mt-0.5 text-[11px] text-slate-600">{detail}</p></div></div>)}</div>
               </div>
             </div>
-            <div className="rounded border border-white/10 bg-[#11161c]"><div className="border-b border-white/10 px-5 py-4"><h2 className="text-sm font-semibold text-white">What changes the day</h2><p className="mt-1 text-xs text-slate-500">Signals worth acting on.</p></div><div className="space-y-4 p-5"><div className="flex gap-3"><AlertTriangle size={16} className="mt-0.5 shrink-0 text-orange-300" /><div><p className="text-xs font-medium text-slate-300">{lateDeliveries + 3} deliveries trending late</p><p className="mt-1 text-[11px] leading-relaxed text-slate-600">Review appointment risk before the next customer update window.</p></div></div><div className="flex gap-3"><FileText size={16} className="mt-0.5 shrink-0 text-amber-200" /><div><p className="text-xs font-medium text-slate-300">{missingPod} loads blocked by POD</p><p className="mt-1 text-[11px] leading-relaxed text-slate-600">Revenue stays on billing hold until documents are verified.</p></div></div><div className="flex gap-3"><ArrowDownRight size={16} className="mt-0.5 shrink-0 text-cyan-300" /><div><p className="text-xs font-medium text-slate-300">Carrier response window narrowing</p><p className="mt-1 text-[11px] leading-relaxed text-slate-600">Four open items are due inside the next two hours.</p></div></div></div></div>
+            <div className="min-w-0 rounded border border-white/10 bg-[#11161c]"><div className="border-b border-white/10 px-5 py-4"><h2 className="text-sm font-semibold text-white">What changes the day</h2><p className="mt-1 text-xs text-slate-500">Signals worth acting on.</p></div><div className="space-y-4 p-5"><div className="flex gap-3"><AlertTriangle size={16} className="mt-0.5 shrink-0 text-orange-300" /><div><p className="text-xs font-medium text-slate-300">{lateDeliveries} deliveries trending late</p><p className="mt-1 text-[11px] leading-relaxed text-slate-600">Review appointment risk before the next customer update window.</p></div></div><div className="flex gap-3"><FileText size={16} className="mt-0.5 shrink-0 text-amber-200" /><div><p className="text-xs font-medium text-slate-300">{missingPod} loads awaiting POD</p><p className="mt-1 text-[11px] leading-relaxed text-slate-600">Receipt and verification are required before billing handoff.</p></div></div><div className="flex gap-3"><ArrowDownRight size={16} className="mt-0.5 shrink-0 text-cyan-300" /><div><p className="text-xs font-medium text-slate-300">Carrier response window narrowing</p><p className="mt-1 text-[11px] leading-relaxed text-slate-600">Review due times in the prioritized exception queue.</p></div></div></div></div>
           </section>
 
           <section className="mt-6 rounded border border-white/10 bg-[#11161c]">
@@ -226,16 +206,16 @@ export function ControlTower({
               <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">{quickFilters.map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`whitespace-nowrap rounded border px-2.5 py-1.5 text-[10px] font-medium transition ${filter === value ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 text-slate-500 hover:border-white/20 hover:text-slate-300"}`}>{label}</button>)}</div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{filterConfigs.map(({ label, value, setter, options }) => <label key={label} className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-600"><UserRound size={12} /><span className="sr-only">{label}</span><select value={value} onChange={(event) => setter(event.target.value)} className="min-w-0 flex-1 rounded border border-white/10 bg-[#0d1217] px-2 py-2 text-xs normal-case tracking-normal text-slate-400 outline-none focus:border-cyan-400/40"><option value="all">All {label}s</option>{options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></label>)}</div>
             </div>
-            <div className="divide-y divide-white/[0.07]">{filteredQueue.slice(0, 10).map(({ exception, shipment, score }, index) => <button key={exception.id} onClick={() => setSelectedException(exception.id)} className="grid w-full gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03] lg:grid-cols-[28px_minmax(250px,1.4fr)_minmax(180px,1fr)_minmax(180px,1fr)_auto]"><span className="pt-1 text-xs font-mono text-slate-600">0{index + 1}</span><span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityClass(exception.severity)}`}>{exception.severity}</span><span className="text-xs font-semibold text-white">{shipment?.loadNumber}</span></span><span className="mt-2 block truncate text-xs font-medium text-slate-300">{exception.title}</span><span className="mt-1 block truncate text-[11px] text-slate-500">{shipment?.customer.name}</span></span><span className="min-w-0"><span className="block truncate text-xs text-slate-300">{shipment?.origin} → {shipment?.destination}</span><span className="mt-1 block text-[11px] capitalize text-slate-600">{statusLabel(shipment?.currentStatus ?? "in_transit")} · {shipment?.equipmentType}</span><span className="mt-2 flex flex-wrap gap-3 text-[10px] text-slate-500"><span>Appt {formatTime(shipment?.pickupAppointment ?? new Date().toISOString())}</span><span>ETA {formatTime(shipment?.eta ?? new Date().toISOString())}</span></span></span><span className="min-w-0"><span className="block text-[10px] uppercase tracking-wider text-slate-600">Why now</span><span className="mt-1 block text-xs leading-relaxed text-slate-400">{exception.description}</span><span className="mt-2 block text-[11px] text-cyan-300">{exception.recommendedAction}</span></span><span className="flex items-start justify-between gap-3 lg:block lg:text-right"><span className="flex items-center gap-1 text-[10px] text-slate-600 lg:justify-end"><Clock3 size={12} /> {formatRelative(exception.detectedAt)}</span><span className="mt-2 block text-[10px] text-slate-500 lg:text-right">Owner <span className="text-slate-300">{exception.owner}</span></span><span className="mt-2 flex items-center justify-end gap-1 font-mono text-xs text-slate-500">{score}<ChevronRight size={14} /></span></span></button>)}</div>
+            <div className="divide-y divide-white/[0.07]">{filteredQueue.slice(0, 10).map(({ exception, shipment, score }, index) => <button key={exception.id} onClick={() => setSelectedException(exception.id)} className="grid w-full gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03] lg:grid-cols-[28px_minmax(250px,1.4fr)_minmax(180px,1fr)_minmax(180px,1fr)_auto]"><span className="pt-1 text-xs font-mono text-slate-600">0{index + 1}</span><span className="min-w-0"><span className="flex flex-wrap items-center gap-2"><span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityClass(exception.severity)}`}>{exception.severity}</span><span className="text-xs font-semibold text-white">{shipment?.loadNumber}</span></span><span className="mt-2 block truncate text-xs font-medium text-slate-300">{exception.title}</span><span className="mt-1 block truncate text-[11px] text-slate-500">{shipment?.customer.name}</span></span><span className="min-w-0"><span className="block truncate text-xs text-slate-300">{shipment?.origin} → {shipment?.destination}</span><span className="mt-1 block text-[11px] capitalize text-slate-600">{statusLabel(shipment?.currentStatus ?? "in_transit")} · {shipment?.equipmentType}</span><span className="mt-2 flex flex-wrap gap-3 text-[10px] text-slate-500"><span>Appt {formatTime(shipment?.pickupAppointment ?? new Date(DEMO_NOW).toISOString())}</span><span>ETA {formatTime(shipment?.eta ?? new Date(DEMO_NOW).toISOString())}</span></span></span><span className="min-w-0"><span className="block text-[10px] uppercase tracking-wider text-slate-600">Why now</span><span className="mt-1 block text-xs leading-relaxed text-slate-400">{exception.description}</span><span className="mt-2 block text-[11px] text-cyan-300">{exception.recommendedAction}</span></span><span className="flex items-start justify-between gap-3 lg:block lg:text-right"><span className="flex items-center gap-1 text-[10px] text-slate-600 lg:justify-end"><Clock3 size={12} /> {formatRelative(exception.detectedAt)}</span><span className="mt-2 block text-[10px] text-slate-500 lg:text-right">Owner <span className="text-slate-300">{exception.owner}</span></span><span className="mt-2 flex items-center justify-end gap-1 font-mono text-xs text-slate-500">{score}<ChevronRight size={14} /></span></span></button>)}</div>
             {filteredQueue.length === 0 && <div className="p-10 text-center text-sm text-slate-500">No exceptions match these filters.</div>}
           </section>
 
           <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="rounded border border-white/10 bg-[#11161c]"><div className="flex items-center justify-between border-b border-white/10 px-5 py-4"><div><h2 className="text-sm font-semibold text-white">Load activity</h2><p className="mt-1 text-xs text-slate-500">The latest events across your operating network.</p></div><ArrowUpRight size={15} className="text-slate-600" /></div><div className="divide-y divide-white/[0.07]">{activity.map((item) => { const Icon = item.icon; return <div key={item.id} className="flex gap-3 px-5 py-3.5"><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded bg-white/[0.04] text-cyan-300"><Icon size={14} /></span><div className="min-w-0"><p className="text-xs font-medium text-slate-300">{item.title}</p><p className="mt-1 truncate text-[11px] text-slate-600">{item.detail}</p></div><span className="ml-auto shrink-0 text-[10px] text-slate-600">{formatRelative(item.time)}</span></div>; })}</div></div>
-            <div className="rounded border border-white/10 bg-[#11161c]"><div className="flex items-center justify-between border-b border-white/10 px-5 py-4"><div><h2 className="text-sm font-semibold text-white">Today&apos;s timeline</h2><p className="mt-1 text-xs text-slate-500">Upcoming appointments that need a plan.</p></div><span className="text-[10px] uppercase tracking-wider text-slate-600">{upcoming.length} next</span></div><div className="divide-y divide-white/[0.07]">{upcoming.map((shipment) => { const isLate = new Date(shipment.pickupAppointment) < new Date() && !["loaded", "in_transit", "at_delivery", "delivered", "pod_pending"].includes(shipment.currentStatus); const endangered = shipment.riskScore >= 65 || new Date(shipment.eta) > new Date(shipment.deliveryAppointment); return <div key={shipment.id} className="flex gap-3 px-5 py-3.5"><div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${isLate || endangered ? "bg-orange-400" : "bg-emerald-400"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-slate-200">{formatTime(shipment.pickupAppointment)}</span><span className="text-xs text-slate-500">{shipment.loadNumber}</span>{(isLate || endangered) && <span className="rounded border border-orange-400/30 bg-orange-400/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-orange-300">{isLate ? "late" : "at risk"}</span>}</div><p className="mt-1 truncate text-[11px] text-slate-400">{shipment.origin} → {shipment.destination}</p><p className="mt-1 truncate text-[10px] text-slate-600">{shipment.customer.name} · {statusLabel(shipment.currentStatus)}</p></div><span className="text-[10px] text-slate-600">{shipment.dispatcher.name.split(" ")[0]}</span></div>; })}</div></div>
+            <div className="min-w-0 rounded border border-white/10 bg-[#11161c]"><div className="flex items-center justify-between border-b border-white/10 px-5 py-4"><div><h2 className="text-sm font-semibold text-white">Load activity</h2><p className="mt-1 text-xs text-slate-500">The latest events across your operating network.</p></div><ArrowUpRight size={15} className="text-slate-600" /></div><div className="divide-y divide-white/[0.07]">{activity.map((item) => { const Icon = item.icon; return <div key={item.id} className="flex gap-3 px-5 py-3.5"><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded bg-white/[0.04] text-cyan-300"><Icon size={14} /></span><div className="min-w-0"><p className="text-xs font-medium text-slate-300">{item.title}</p><p className="mt-1 truncate text-[11px] text-slate-600">{item.detail}</p></div><span className="ml-auto shrink-0 text-[10px] text-slate-600">{formatRelative(item.time)}</span></div>; })}</div></div>
+            <div className="min-w-0 rounded border border-white/10 bg-[#11161c]"><div className="flex items-center justify-between border-b border-white/10 px-5 py-4"><div><h2 className="text-sm font-semibold text-white">Today&apos;s timeline</h2><p className="mt-1 text-xs text-slate-500">Upcoming appointments that need a plan.</p></div><span className="text-[10px] uppercase tracking-wider text-slate-600">{upcoming.length} next</span></div><div className="divide-y divide-white/[0.07]">{upcoming.map((shipment) => { const isLate = new Date(shipment.pickupAppointment) < new Date(DEMO_NOW) && !["loaded", "in_transit", "at_delivery", "delivered", "pod_pending"].includes(shipment.currentStatus); const endangered = shipment.riskScore >= 65 || new Date(shipment.eta) > new Date(shipment.deliveryAppointment); return <div key={shipment.id} className="flex gap-3 px-5 py-3.5"><div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${isLate || endangered ? "bg-orange-400" : "bg-emerald-400"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-slate-200">{formatTime(shipment.pickupAppointment)}</span><span className="text-xs text-slate-500">{shipment.loadNumber}</span>{(isLate || endangered) && <span className="rounded border border-orange-400/30 bg-orange-400/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-orange-300">{isLate ? "late" : "at risk"}</span>}</div><p className="mt-1 truncate text-[11px] text-slate-400">{shipment.origin} → {shipment.destination}</p><p className="mt-1 truncate text-[10px] text-slate-600">{shipment.customer.name} · {statusLabel(shipment.currentStatus)}</p></div><span className="text-[10px] text-slate-600">{shipment.dispatcher.name.split(" ")[0]}</span></div>; })}</div></div>
           </section>
 
-          {selected && <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/60 p-4 sm:items-center" onClick={() => setSelectedException(null)}><div className="w-full max-w-lg rounded border border-white/15 bg-[#151b22] shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-start justify-between border-b border-white/10 p-5"><div><span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityClass(selected.exception.severity)}`}>{selected.exception.severity} priority</span><h2 className="mt-3 text-lg font-semibold text-white">{selected.exception.title}</h2><p className="mt-1 text-xs text-slate-500">{selected.shipment?.loadNumber} · {selected.shipment?.customer.name}</p></div><button onClick={() => setSelectedException(null)} className="rounded p-1 text-slate-500 hover:bg-white/5 hover:text-white" aria-label="Close exception details"><X size={18} /></button></div><div className="space-y-5 p-5"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-600">Why it needs attention</p><p className="mt-2 text-sm leading-relaxed text-slate-300">{selected.exception.description}</p></div><div className="rounded border border-cyan-400/20 bg-cyan-400/[0.05] p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">Recommended next action</p><p className="mt-2 text-sm text-slate-200">{selected.exception.recommendedAction}</p></div><div className="flex items-center justify-between text-xs text-slate-500"><span>Owner: <span className="text-slate-300">{selected.exception.owner}</span></span><span className="flex items-center gap-1"><Clock3 size={13} /> Detected {formatRelative(selected.exception.detectedAt)}</span></div><button className="flex w-full items-center justify-center gap-2 rounded bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-[#071014] hover:bg-cyan-300"><CheckCircle2 size={16} /> Mark in progress</button></div></div></div>}
+          {selected && <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/60 p-4 sm:items-center" onClick={() => setSelectedException(null)}><div className="w-full max-w-lg rounded border border-white/15 bg-[#151b22] shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-start justify-between border-b border-white/10 p-5"><div><span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityClass(selected.exception.severity)}`}>{selected.exception.severity} priority</span><h2 className="mt-3 text-lg font-semibold text-white">{selected.exception.title}</h2><p className="mt-1 text-xs text-slate-500">{selected.shipment?.loadNumber} · {selected.shipment?.customer.name}</p></div><button onClick={() => setSelectedException(null)} className="rounded p-1 text-slate-500 hover:bg-white/5 hover:text-white" aria-label="Close exception details"><X size={18} /></button></div><div className="space-y-5 p-5"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-600">Why it needs attention</p><p className="mt-2 text-sm leading-relaxed text-slate-300">{selected.exception.description}</p></div><div className="rounded border border-cyan-400/20 bg-cyan-400/[0.05] p-4"><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">Recommended next action</p><p className="mt-2 text-sm text-slate-200">{selected.exception.recommendedAction}</p></div><div className="flex items-center justify-between text-xs text-slate-500"><span>Owner: <span className="text-slate-300">{selected.exception.owner}</span></span><span className="flex items-center gap-1"><Clock3 size={13} /> Detected {formatRelative(selected.exception.detectedAt)}</span></div><button onClick={() => { dispatchDemo({ type: "exception", id: selected.exception.id, status: "in_progress", label: "In progress in demo" }); setSelectedException(null); }} className="flex w-full items-center justify-center gap-2 rounded bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-[#071014] hover:bg-cyan-300"><CheckCircle2 size={16} /> Mark in progress</button></div></div></div>}
         </main>
       </div>
     </div>

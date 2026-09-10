@@ -1,3 +1,4 @@
+import { DEMO_NOW } from "@/lib/demo-clock";
 import type { Customer, Exception, Shipment } from "@/lib/domain";
 
 export type NotificationChannel = "email" | "SMS" | "portal";
@@ -46,7 +47,7 @@ export function customerProfiles(customers: Customer[]): CustomerNotificationPro
 
 export function updatesDue(shipments: Shipment[], exceptions: Exception[]): CustomerUpdateDue[] {
   return shipments
-    .filter((shipment) => new Date(shipment.customerUpdateDue).getTime() <= Date.now())
+    .filter((shipment) => new Date(shipment.customerUpdateDue).getTime() <= DEMO_NOW)
     .map((shipment) => {
       const critical = exceptions.some((exception) => exception.shipmentId === shipment.id && exception.severity === "critical" && exception.status !== "resolved");
       const exception = exceptions.find((item) => item.shipmentId === shipment.id && item.status !== "resolved");
@@ -72,5 +73,5 @@ export function previewMessage(update: CustomerUpdateDue, channel: NotificationC
   if (customMessage?.trim()) return customMessage.trim();
   const { shipment } = update;
   const prefix = channel === "SMS" ? "FreightFlow update:" : `Hello ${shipment.customer.name},`;
-  return `${prefix} ${shipment.loadNumber} is currently ${shipment.currentStatus.replaceAll("_", " ")} from ${shipment.origin} to ${shipment.destination}. ${update.reason}. Current ETA is ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(shipment.eta))}. We will send the next update when the status changes.`;
+  return `${prefix} ${shipment.loadNumber} is currently ${shipment.currentStatus.replaceAll("_", " ")} from ${shipment.origin} to ${shipment.destination}. ${update.reason}. Current ETA is ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" }).format(new Date(shipment.eta))}. We will send the next update when the status changes.`;
 }

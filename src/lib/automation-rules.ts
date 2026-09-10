@@ -1,3 +1,4 @@
+import { DEMO_NOW } from "@/lib/demo-clock";
 import type { Exception, Shipment } from "@/lib/domain";
 
 export type AutomationRuleSeverity = "info" | "warning" | "critical";
@@ -47,10 +48,10 @@ export const automationRules: AutomationRule[] = [
   { id: "BILLING_DOCUMENT_HOLD", name: "Billing document hold", trigger: "Delivered shipment has missing POD or BOL", severity: "warning", action: "Keep invoice in document readiness queue", escalation: "Billing ops follow-up after 48 hours", category: "documents", enabled: true },
 ];
 
-const hoursSince = (value: string, now = Date.now()) => (now - new Date(value).getTime()) / 3_600_000;
-const hoursUntil = (value: string, now = Date.now()) => (new Date(value).getTime() - now) / 3_600_000;
+const hoursSince = (value: string, now = DEMO_NOW) => (now - new Date(value).getTime()) / 3_600_000;
+const hoursUntil = (value: string, now = DEMO_NOW) => (new Date(value).getTime() - now) / 3_600_000;
 
-export function evaluateAutomationRules(shipment: Shipment, exceptions: Exception[] = [], now = Date.now()): RuleMatch[] {
+export function evaluateAutomationRules(shipment: Shipment, exceptions: Exception[] = [], now = DEMO_NOW): RuleMatch[] {
   const trackingAge = hoursSince(shipment.lastTrackingUpdate, now);
   const customerWindow = hoursUntil(shipment.customerUpdateDue, now);
   const deliveryBuffer = hoursUntil(shipment.deliveryAppointment, now);

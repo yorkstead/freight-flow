@@ -1,3 +1,4 @@
+import { DEMO_NOW } from "@/lib/demo-clock";
 import type { Document, Shipment } from "@/lib/domain";
 
 export type DocumentNeed =
@@ -31,7 +32,7 @@ export interface DocumentQueueItem {
 }
 
 const hoursSince = (timestamp: string) =>
-  Math.max(1, Math.round((Date.now() - new Date(timestamp).getTime()) / 3_600_000));
+  Math.max(1, Math.round((DEMO_NOW - new Date(timestamp).getTime()) / 3_600_000));
 
 const missingDocument = (documents: Document[], shipmentId: string, type: Document["type"]) =>
   documents.find((document) => document.shipmentId === shipmentId && document.type === type);

@@ -1,3 +1,4 @@
+import { DEMO_NOW } from "@/lib/demo-clock";
 import type {
   Carrier,
   CommunicationEvent,
@@ -68,9 +69,9 @@ const customerNames = [
 ] as const;
 
 const isoHoursAgo = (hours: number) =>
-  new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  new Date(DEMO_NOW - hours * 60 * 60 * 1000).toISOString();
 const isoHoursFromNow = (hours: number) =>
-  new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+  new Date(DEMO_NOW + hours * 60 * 60 * 1000).toISOString();
 
 export const dispatchers: Person[] = names.slice(0, 5).map((name, index) => ({
   id: `dispatcher-${index + 1}`,

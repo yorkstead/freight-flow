@@ -1,3 +1,4 @@
+import { DEMO_NOW } from "@/lib/demo-clock";
 import type { Exception, Shipment } from "@/lib/domain";
 
 const severityWeight = { critical: 100, high: 70, medium: 40, low: 20 } as const;
@@ -7,8 +8,8 @@ export interface PriorityBreakdown {
   factors: { label: string; points: number; detail: string }[];
 }
 
-const hoursUntil = (date: string) => (new Date(date).getTime() - Date.now()) / 3_600_000;
-const hoursSince = (date: string) => (Date.now() - new Date(date).getTime()) / 3_600_000;
+const hoursUntil = (date: string) => (new Date(date).getTime() - DEMO_NOW) / 3_600_000;
+const hoursSince = (date: string) => (DEMO_NOW - new Date(date).getTime()) / 3_600_000;
 
 export function priorityBreakdown(exception: Exception, shipment: Shipment): PriorityBreakdown {
   const appointment = shipment.currentStatus.includes("pickup")

@@ -1,4 +1,5 @@
 "use client";
+import { dispatchDemo } from "@/components/demo-session";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Pause, Play, RotateCcw, Zap } from "lucide-react";
@@ -50,9 +51,11 @@ export function DemoSimulationProvider({ children }: { children: React.ReactNode
   }, [eventIndex]);
   const injectException = useCallback((exception: InjectedException) => {
     setInjectedException(exception);
+    dispatchDemo({ type: "inject", title: exception });
     setLastEvent(`Injected: ${exception}`);
   }, []);
   const reset = useCallback(() => {
+    dispatchDemo({ type: "reset" });
     setSpeed(1);
     setEventIndex(-1);
     setLastEvent(null);
